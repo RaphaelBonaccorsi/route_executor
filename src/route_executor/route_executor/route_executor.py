@@ -36,6 +36,7 @@ class RouteExecutor(Node):
         self.start_publishing_setpoints()
 
         # Switch to Offboard mode and arm the drone
+        time.sleep(10)
         self.set_offboard_mode()
         self.arm()
 
