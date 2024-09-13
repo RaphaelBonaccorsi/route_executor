@@ -16,5 +16,11 @@ def generate_launch_description():
             package='route_executor',
             executable='route_executor',
             output='screen'
-        )
+        ),
+        Node(
+            package='pddl_reader',
+            executable='pddl_reader',
+            output='screen'
+        ),
+        
     ])
