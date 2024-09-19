@@ -4,6 +4,7 @@ import json
 import time
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy, QoSDurabilityPolicy
 from ament_index_python.packages import get_package_share_directory
 from geometry_msgs.msg import PoseStamped
 from mavros_msgs.srv import CommandBool, SetMode
@@ -188,6 +189,22 @@ class RouteExecutor(Node):
             Int32, '/drone/waypoint_index', self.waypoint_callback, 10
         )
 
+        # Define QoS profile with reliable reliability to match MAVROS
+        qos_profile = QoSProfile(
+            reliability=QoSReliabilityPolicy.BEST_EFFORT,
+            durability=QoSDurabilityPolicy.VOLATILE,
+            history=QoSHistoryPolicy.KEEP_LAST,
+            depth=1
+        )
+
+        # Subscriber to get the current position of the drone with updated QoS
+        self.position_subscriber = self.create_subscription(
+            PoseStamped, '/mavros/local_position/pose', self.position_callback, qos_profile
+        )
+
+        # Variable to store the current position of the drone
+        self.current_position = (0.0, 0.0)  # Default value if no position is received
+
         # Get package share directory and set path to JSON map file
         package_share = get_package_share_directory('route_executor')
         map_file = os.path.join(package_share, 'data', 'map.json')
@@ -205,6 +222,29 @@ class RouteExecutor(Node):
         time.sleep(10)
         self.set_offboard_mode()
         self.arm()
+
+    def position_callback(self, msg):
+        """
+        Callback to update the current position of the drone.
+
+        Parameters
+        ----------
+        msg : geometry_msgs.msg.PoseStamped
+            The message containing the current pose of the drone.
+        """
+        # Extract the current position in the local ENU frame
+        self.current_position = (msg.pose.position.x, msg.pose.position.y)
+
+    def get_current_position(self):
+        """
+        Gets the current position of the drone from the latest data received from MAVROS.
+
+        Returns
+        -------
+        tuple
+            The current position (X, Y) of the drone.
+        """
+        return self.current_position
 
     def start_publishing_setpoints(self):
         """
@@ -290,18 +330,6 @@ class RouteExecutor(Node):
         current_position = self.get_current_position()
         distance = sqrt((x - current_position[0]) ** 2 + (y - current_position[1]) ** 2)
         return distance < threshold
-
-    def get_current_position(self):
-        """
-        Simulates the current position of the drone.
-        Replace this with actual logic to get the drone's position from a ROS topic or service.
-
-        Returns
-        -------
-        tuple
-            The current position (X, Y) of the drone.
-        """
-        return (0, 0)
 
     def waypoint_callback(self, msg):
         """
