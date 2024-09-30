@@ -1,0 +1,2 @@
+[console_scripts]
+pddl_reader = pddl_reader.pddl_reader:main

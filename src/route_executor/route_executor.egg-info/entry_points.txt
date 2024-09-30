@@ -1,0 +1,2 @@
+[console_scripts]
+route_executor = route_executor.route_executor:main

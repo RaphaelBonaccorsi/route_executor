@@ -1,0 +1,8 @@
+Metadata-Version: 2.1
+Name: pddl_reader
+Version: 0.0.0
+Summary: ROS 2 package for reading waypoints and using plansys2
+Maintainer: your_name
+Maintainer-email: your_email@example.com
+License: TODO: License declaration
+Requires-Dist: setuptools

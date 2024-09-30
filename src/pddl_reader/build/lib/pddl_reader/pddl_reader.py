@@ -2,10 +2,13 @@
 import os
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Int32, Empty
+from std_msgs.msg import Int32
 from ament_index_python.packages import get_package_share_directory
-from plansys2_msgs.srv import GetPlan, AddProblem, GetDomain
+from plansys2_msgs.srv import GetPlan
 from plansys2_msgs.msg import ActionExecution
+
+from plansys2_problem_expert.problem_expert import ProblemExpertClient
+from plansys2_domain_expert.domain_expert import DomainExpertClient
 
 class WaypointPublisher(Node):
     def __init__(self):
@@ -21,11 +24,14 @@ class WaypointPublisher(Node):
         self.problem_client = ProblemExpertClient()
         self.domain_client = DomainExpertClient()
 
-        self.domain_file = os.path.join('pddl', 'domain.pddl')
-        self.problem_file = os.path.join('pddl', 'problem.pddl')
+        # PDDL files
+        package_share = get_package_share_directory('pddl_reader')
+        self.domain_file = os.path.join(package_share, 'data', 'domain.pddl')
+        self.problem_file = os.path.join(package_share, 'data', 'problem.pddl')
+
         # Load the domain and problem files (PDDL)
         self.load_pddl_files()
-        """
+
         # Create a PlanSys2 plan service client
         self.plan_client = self.create_client(GetPlan, '/planner/get_plan')
 
@@ -36,7 +42,7 @@ class WaypointPublisher(Node):
         # Timer to publish the waypoint index every 20 seconds
         self.timer_period = 20.0  # seconds
         self.timer = self.create_timer(self.timer_period, self.execute_plan_step)
-        """
+
     def load_pddl_files(self):
         """
         Load the PDDL domain and problem files into PlanSys2.
@@ -47,6 +53,9 @@ class WaypointPublisher(Node):
         """
         Generate a plan based on the PDDL problem.
         """
+        # Define the goal (this should be consistent with the PDDL goal)
+        goal = self.problem_client.parse_goal("(and (drone_at drone1 waypoint_5))")
+        self.problem_client.set_goal(goal)
 
         # Get the plan
         self.get_logger().info("Requesting plan from PlanSys2...")
@@ -91,33 +100,11 @@ class WaypointPublisher(Node):
             self.get_logger().info("Plan execution complete.")
             self.timer.cancel()  # Stop the timer when the plan is complete
 
-class DomainExpertClient(Node):
-    def __init__(self):
-        super().__init__('domain_expert_client')
-        # Cria o cliente para o serviço GetDomain
-        self.get_domain_client = self.create_client(GetDomain, '/domain_expert/get_domain')
-        # Espera pelo serviço estar disponível
-        self.get_domain_client.wait_for_service(timeout_sec=10.0)
-
-    def get_domain(self):
-        # Cria um pedido vazio, pois o serviço não necessita de argumentos
-        request = GetDomain.Request()
-        
-        # Envia o pedido e espera pela resposta
-        future = self.get_domain_client.call_async(request)
-        rclpy.spin_until_future_complete(self, future)
-
-        # Verifica se a chamada foi bem-sucedida
-        if future.result() is not None:
-            response = future.result()
-            self.get_logger().info(f"Domínio recebido: {response.domain}")
-        else:
-            self.get_logger().error("Falha ao chamar o serviço /domain_expert/get_domain")
-
 def main(args=None):
     rclpy.init(args=args)
-    domain_client = DomainExpertClient()
-    domain_client.get_domain()
+    node = WaypointPublisher()
+    rclpy.spin(node)
+    node.destroy_node()
     rclpy.shutdown()
 
 if __name__ == '__main__':
